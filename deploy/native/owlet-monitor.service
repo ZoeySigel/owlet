@@ -1,0 +1,5 @@
+[Unit]
+Description=Owlet health and disk check
+[Service]
+Type=oneshot
+ExecStart=/opt/owlet/monitor.sh

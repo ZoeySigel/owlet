@@ -1,0 +1,25 @@
+node_modules/
+web/dist/
+.env
+.env.*
+!.env.example
+data/
+backups/
+.tools/
+test-results/
+*.log
+*.exe
+*.tsbuildinfo
+playwright-report/
+release/
+owlet-linux-amd64.tar.gz
+*.pem
+*.key
+*.enc
+__pycache__/
+# Private operational records and one-off verification scripts.
+docs/server-deployment.md
+.github/ssh_known_hosts
+scripts/server-restart-smoke.mjs
+scripts/restore-read-smoke.mjs
+deploy/native/finalize-staging.sh

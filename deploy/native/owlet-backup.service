@@ -1,0 +1,7 @@
+[Unit]
+Description=Consistent Owlet database and asset backup
+After=postgresql.service
+[Service]
+Type=oneshot
+ExecStart=/opt/owlet/backup.sh
+UMask=0077

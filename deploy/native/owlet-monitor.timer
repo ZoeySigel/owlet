@@ -1,0 +1,7 @@
+[Unit]
+Description=Check Owlet health every five minutes
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+[Install]
+WantedBy=timers.target

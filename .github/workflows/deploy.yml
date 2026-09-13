@@ -1,0 +1,51 @@
+name: Deploy Owlet (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: owlet-production
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://owl-et.me
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: owlet-${{ github.sha }}
+      - name: Install restricted deployment credentials
+        env:
+          DEPLOY_KEY: ${{ secrets.OWLET_DEPLOY_KEY }}
+          KNOWN_HOST: ${{ vars.OWLET_KNOWN_HOST }}
+        run: |
+          test -n "$DEPLOY_KEY" || { echo 'Missing OWLET_DEPLOY_KEY repository secret'; exit 1; }
+          test -n "$KNOWN_HOST" || { echo 'Missing OWLET_KNOWN_HOST repository variable'; exit 1; }
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/owlet_actions
+          printf '%s\n' "$KNOWN_HOST" > ~/.ssh/known_hosts
+      - name: Deploy tested commit
+        env:
+          DEPLOY_HOST: ${{ vars.OWLET_DEPLOY_HOST }}
+        run: |
+          test -n "$DEPLOY_HOST" || { echo 'Missing OWLET_DEPLOY_HOST repository variable'; exit 1; }
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 \
+            -i ~/.ssh/owlet_actions "owlet-ci@$DEPLOY_HOST" "deploy $GITHUB_SHA" < owlet-linux-amd64.tar.gz
+      - name: Verify public release
+        run: |
+          curl --fail --retry 3 --max-time 15 https://owl-et.me/api/health
+          test "$(curl --fail --retry 3 --max-time 15 -sS https://owl-et.me/revision.txt)" = "$GITHUB_SHA"
+      - name: Remove temporary key
+        if: always()
+        run: rm -f ~/.ssh/owlet_actions

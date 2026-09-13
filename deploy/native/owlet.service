@@ -1,0 +1,29 @@
+[Unit]
+Description=Owlet creative workspace
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=owlet
+Group=owlet
+WorkingDirectory=/opt/owlet
+EnvironmentFile=/etc/owlet/app.env
+ExecStart=/opt/owlet/owlet
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+MemoryMax=384M
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/owlet
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=owlet
+LogNamespace=owlet
+
+[Install]
+WantedBy=multi-user.target

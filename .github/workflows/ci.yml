@@ -1,0 +1,104 @@
+name: Validate Owlet
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: owlet_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test-only@localhost:5432/owlet_test?sslmode=disable
+      MODEL_MODE: mock
+      PAID_CALLS_VERIFIED: 'false'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: backend/go.sum
+      - name: Release archive safety tests
+        run: python3 -m unittest discover -s deploy/native -p 'test_*.py' -v
+      - name: Go tests and static analysis
+        working-directory: backend
+        run: |
+          go test -race -count=1 ./...
+          go vet ./...
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Frontend build
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - name: Build release
+        run: |
+          mkdir -p release/web
+          (cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o ../release/owlet .)
+          cp -R web/dist/. release/web/
+          printf '%s\n' "$GITHUB_SHA" > release/REVISION
+          printf '%s\n' "$GITHUB_SHA" > release/web/revision.txt
+          tar -czf owlet-linux-amd64.tar.gz -C release owlet web REVISION
+      - name: Install browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Start isolated mock application
+        env:
+          DATABASE_URL: postgres://postgres:test-only@localhost:5432/owlet_test?sslmode=disable
+          LISTEN_ADDR: 127.0.0.1:18080
+          PUBLIC_ORIGIN: http://localhost:5173
+          ADMIN_USERNAME: demo-admin
+          ADMIN_PASSWORD: owlet-local-demo-only
+          DATA_DIR: ${{ runner.temp }}/owlet-assets
+        run: |
+          mkdir -p "$DATA_DIR"
+          ./release/owlet > /tmp/owlet-api.log 2>&1 &
+          npm --prefix web run dev > /tmp/owlet-web.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:5173/api/health; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/owlet-api.log /tmp/owlet-web.log
+          exit 1
+      - name: HTTP and browser acceptance
+        env:
+          PW_CHANNEL: chromium
+        run: |
+          node scripts/api-smoke.mjs
+          npm --prefix web test
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-${{ github.sha }}
+          path: |
+            web/test-results
+            /tmp/owlet-api.log
+            /tmp/owlet-web.log
+          retention-days: 3
+      - name: Upload tested release
+        uses: actions/upload-artifact@v4
+        with:
+          name: owlet-${{ github.sha }}
+          path: owlet-linux-amd64.tar.gz
+          if-no-files-found: error
+          retention-days: 14

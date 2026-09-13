@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: owlet
+      POSTGRES_DB: owlet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    command: [postgres, -c, shared_buffers=128MB, -c, max_connections=30, -c, work_mem=4MB]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    restart: unless-stopped
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U owlet -d owlet]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  app:
+    image: ${APP_IMAGE:-owlet-app:local}
+    build: ./backend
+    environment:
+      DATABASE_URL: postgres://owlet:${POSTGRES_PASSWORD}@db:5432/owlet?sslmode=disable
+      LISTEN_ADDR: :8080
+      PUBLIC_ORIGIN: https://${SITE_DOMAIN:-owl-et.me}
+      COOKIE_SECURE: 'true'
+      DATA_DIR: /data
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set initial ADMIN_PASSWORD}
+      MODEL_MODE: ${MODEL_MODE:-mock}
+      BIGMODEL_API_KEY: ${BIGMODEL_API_KEY:-}
+      BIGMODEL_TEXT_MODEL: ${BIGMODEL_TEXT_MODEL:-}
+      PAID_CALLS_VERIFIED: ${PAID_CALLS_VERIFIED:-false}
+      TEXT_RESERVE_MICRO: ${TEXT_RESERVE_MICRO:-0}
+      TEXT_CONTEXT_TOKENS: ${TEXT_CONTEXT_TOKENS:-0}
+      TEXT_INPUT_PER_MILLION_MICRO: ${TEXT_INPUT_PER_MILLION_MICRO:-0}
+      TEXT_OUTPUT_PER_MILLION_MICRO: ${TEXT_OUTPUT_PER_MILLION_MICRO:-0}
+      TEXT_MAX_TOKENS: ${TEXT_MAX_TOKENS:-2048}
+      IMAGE_PRICE_MICRO: ${IMAGE_PRICE_MICRO:-100000}
+    volumes: [assets:/data]
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+    mem_limit: 384m
+    healthcheck:
+      test: [CMD, wget, -q, --spider, 'http://127.0.0.1:8080/api/health']
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  web:
+    image: ${WEB_IMAGE:-owlet-web:local}
+    build: ./web
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-owl-et.me}
+    ports: ['80:80', '443:443']
+    volumes: [caddy_data:/data, caddy_config:/config]
+    depends_on: [app]
+    restart: unless-stopped
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+volumes:
+  pgdata:
+  assets:
+  caddy_data:
+  caddy_config:
