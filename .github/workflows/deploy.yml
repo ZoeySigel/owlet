@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
-      name: production
+      name: OWLET
       url: https://owl-et.me
     steps:
       - uses: actions/checkout@v6
@@ -29,8 +29,8 @@ jobs:
           DEPLOY_KEY: ${{ secrets.OWLET_DEPLOY_KEY }}
           KNOWN_HOST: ${{ secrets.OWLET_KNOWN_HOST }}
         run: |
-          test -n "$DEPLOY_KEY" || { echo 'Missing OWLET_DEPLOY_KEY repository secret'; exit 1; }
-          test -n "$KNOWN_HOST" || { echo 'Missing OWLET_KNOWN_HOST repository secret'; exit 1; }
+          test -n "$DEPLOY_KEY" || { echo 'Missing OWLET_DEPLOY_KEY secret in OWLET environment or repository'; exit 1; }
+          test -n "$KNOWN_HOST" || { echo 'Missing OWLET_KNOWN_HOST secret in OWLET environment or repository'; exit 1; }
           umask 077
           mkdir -p ~/.ssh
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/owlet_actions
@@ -39,7 +39,7 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.OWLET_DEPLOY_HOST }}
         run: |
-          test -n "$DEPLOY_HOST" || { echo 'Missing OWLET_DEPLOY_HOST repository secret'; exit 1; }
+          test -n "$DEPLOY_HOST" || { echo 'Missing OWLET_DEPLOY_HOST secret in OWLET environment or repository'; exit 1; }
           ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 \
             -i ~/.ssh/owlet_actions "owlet-ci@$DEPLOY_HOST" "deploy $GITHUB_SHA" < owlet-linux-amd64.tar.gz
       - name: Verify public release

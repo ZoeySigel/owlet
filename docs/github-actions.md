@@ -18,7 +18,7 @@ CI 使用临时测试凭证及模拟模型，不接触生产数据库，也不�
 
 打开 Actions → Deploy Owlet (manual) → Run workflow，选择 main。工作流先复用完整测试流程，然后部署该次运行对应的同一个提交与产物。普通 push 不会部署；其他分支的部署请求跳过。部署串行执行，正在进行的部署不会被新点击中断。
 
-需要三个 Repository Secrets。在 Settings → Secrets and variables → Actions → New repository secret 中设置。OWLET_DEPLOY_KEY 是本机 .tools/ssh/owlet_actions_ed25519 文件全文（包含 BEGIN/END 行），禁止提交到代码或通过聊天发送。
+部署任务绑定名为 OWLET 的 Environment。三个密钥可在 Settings → Environments → OWLET → Environment secrets 中设置，也兼容 Repository Secrets。OWLET_DEPLOY_KEY 是本机 .tools/ssh/owlet_actions_ed25519 文件全文（包含 BEGIN/END 行），禁止提交到代码或通过聊天发送。
 
 另外两个 Secret：OWLET_DEPLOY_HOST 为服务器 IP，OWLET_KNOWN_HOST 为已核实的 known_hosts 记录（主机名、公钥类型、公钥三部分）。全部使用 Secrets，以遮盖公开 Actions 日志中的值。更换服务器必须通过可信渠道重新核对公钥，不自动信任 ssh-keyscan 结果。
 
