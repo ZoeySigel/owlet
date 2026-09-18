@@ -34,7 +34,7 @@ Caddy 在域名解析、80/443 可达时自动申请 HTTPS。生产不要叠加 
 
 ## 启用 BigModel
 
-文本模型通过 BIGMODEL_TEXT_MODEL 指定。图片模型和尺寸通过 BIGMODEL_IMAGE_MODEL、BIGMODEL_IMAGE_SIZE 配置，默认 glm-image、1152x1536（3:4）。调用前校验模型尺寸约束；排队后修改模型或尺寸会拒绝旧任务并释放预留。参数尚待账号实测，不能将协议测试视为实际权限验证。
+文本模型通过 BIGMODEL_TEXT_MODEL 指定。图片模型和尺寸通过 BIGMODEL_IMAGE_MODEL、BIGMODEL_IMAGE_SIZE 配置，默认 glm-image、1152x1536（3:4）。调用前校验模型尺寸约束；排队后修改模型或尺寸会拒绝旧任务并释放预留。2026-09-18 已实测 glm-image 的 1152x1536 请求成功并保存图片。更换模型或尺寸仍需复验。
 
 先核实账号实际费率、文字最大上下文、输出上限与图片权限。配置 BIGMODEL_API_KEY、BIGMODEL_TEXT_MODEL、TEXT_CONTEXT_TOKENS、TEXT_MAX_TOKENS，以及输入/输出每百万 token 的微元价格；TEXT_RESERVE_MICRO 必须覆盖最大上下文输入与输出费用。IMAGE_PRICE_MICRO 是一张图的已核实费用，不应沿用示例值当实际价格。
 
@@ -44,7 +44,7 @@ Caddy 在域名解析、80/443 可达时自动申请 HTTPS。生产不要叠加 
 
 金额换算：1 元 = 1,000,000 微元；每百万 token 收 X 元，则费率变量 = X × 1,000,000。代码目前以完整最大上下文估算，较保守；若单次上界超过个人 5 元会拒绝，需要选择合适模型。
 
-全部核实后设置 MODEL_MODE=bigmodel、PAID_CALLS_VERIFIED=true 并重启 app。模式或费率改变后，旧排队任务会失败并释放预留。不要在有未核对任务时切换环境。正式演示使用干净的数据库和独立数据卷，保留原模拟库用于测试，避免混合 mock 账本和真实账单。
+全部核实后设置 MODEL_MODE=bigmodel、PAID_CALLS_VERIFIED=true 并重启 app。模式或费率改变后，旧排队任务会失败并释放预留。不要在有未核对任务时切换环境。本次上线保留现有数据库、账号与项目：先备份并确认所有模拟任务已结算，再将旧 quotas.key 和 jobs 的周期键加 mock: 前缀归档。真实调用继续使用正常周期键，新额度不含模拟费用。不要直接将这个生产库切回 mock，否则会混用真实周期键；模拟测试应使用独立数据库。
 
 第一次仅生成一篇文案与一张背景，手动对账后再开放邀请码。usage 缺失、超时或上游结果不明时，到后台核对；禁止通过重复生成猜测是否成功。密钥不得进入前端、截图、视频、Git 或文档。
 
