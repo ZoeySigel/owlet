@@ -56,7 +56,13 @@ func price(kind string) (int64, error) {
 	if env("PAID_CALLS_VERIFIED", "false") != "true" {
 		return 0, errors.New("真实调用未启用：需先核实账号权限、费率和调用费用上界")
 	}
+	if env("MODEL_MODE", "mock") != "bigmodel" || env("BIGMODEL_API_KEY", "") == "" {
+		return 0, errors.New("模型模式无效或未配置 BigModel 密钥")
+	}
 	if kind == "image" {
+		if _, _, err := imageSettings(); err != nil {
+			return 0, err
+		}
 		p := integer("IMAGE_PRICE_MICRO", 0)
 		if p > 0 && p <= dailyCap {
 			return p, nil
@@ -65,6 +71,9 @@ func price(kind string) (int64, error) {
 		p := integer("TEXT_RESERVE_MICRO", 0)
 		contextTokens := integer("TEXT_CONTEXT_TOKENS", 0)
 		inputRate, outputRate := integer("TEXT_INPUT_PER_MILLION_MICRO", 0), integer("TEXT_OUTPUT_PER_MILLION_MICRO", 0)
+		if integer("TEXT_MAX_TOKENS", 2048) < 1 || integer("TEXT_MAX_TOKENS", 2048) > 4096 {
+			return 0, errors.New("文本输出上限必须在 1 到 4096 之间")
+		}
 		if contextTokens < 1 || contextTokens > 2_000_000 || inputRate < 1 || outputRate < 1 || inputRate > 1_000_000_000_000 || outputRate > 1_000_000_000_000 {
 			return 0, errors.New("未核实文本模型最大上下文及费率")
 		}
@@ -191,7 +200,7 @@ func (a *App) createJob(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, _ := json.Marshal(in)
 	jid := id()
-	_, e = tx.Exec(ctx, `INSERT INTO jobs(id,owner_id,project_id,idem,kind,input,reserve,day_key,month_key,result) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, jid, user(r).ID, in.ProjectID, key, in.Kind, raw, p, day, month, map[string]any{"snapshot": json.RawMessage(snapshot), "mode": env("MODEL_MODE", "mock"), "input_rate": integer("TEXT_INPUT_PER_MILLION_MICRO", 0), "output_rate": integer("TEXT_OUTPUT_PER_MILLION_MICRO", 0), "model": env("BIGMODEL_TEXT_MODEL", ""), "max_tokens": integer("TEXT_MAX_TOKENS", 2048)})
+	_, e = tx.Exec(ctx, `INSERT INTO jobs(id,owner_id,project_id,idem,kind,input,reserve,day_key,month_key,result) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, jid, user(r).ID, in.ProjectID, key, in.Kind, raw, p, day, month, map[string]any{"snapshot": json.RawMessage(snapshot), "mode": env("MODEL_MODE", "mock"), "input_rate": integer("TEXT_INPUT_PER_MILLION_MICRO", 0), "output_rate": integer("TEXT_OUTPUT_PER_MILLION_MICRO", 0), "model": env("BIGMODEL_TEXT_MODEL", ""), "max_tokens": integer("TEXT_MAX_TOKENS", 2048), "image_model": env("BIGMODEL_IMAGE_MODEL", "glm-image"), "image_size": env("BIGMODEL_IMAGE_SIZE", "1152x1536")})
 	if e != nil || tx.Commit(ctx) != nil {
 		fail(w, 500, "任务提交失败")
 		return

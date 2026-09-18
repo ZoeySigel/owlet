@@ -34,9 +34,13 @@ Caddy 在域名解析、80/443 可达时自动申请 HTTPS。生产不要叠加 
 
 ## 启用 BigModel
 
-当前图片适配器是 glm-image、960×1280，文本模型通过 BIGMODEL_TEXT_MODEL 指定。图片参数尚未用账号验证，若权限不支持，需要调整适配器后复验，不能直接猜测可用性。
+文本模型通过 BIGMODEL_TEXT_MODEL 指定。图片模型和尺寸通过 BIGMODEL_IMAGE_MODEL、BIGMODEL_IMAGE_SIZE 配置，默认 glm-image、1152x1536（3:4）。调用前校验模型尺寸约束；排队后修改模型或尺寸会拒绝旧任务并释放预留。参数尚待账号实测，不能将协议测试视为实际权限验证。
 
 先核实账号实际费率、文字最大上下文、输出上限与图片权限。配置 BIGMODEL_API_KEY、BIGMODEL_TEXT_MODEL、TEXT_CONTEXT_TOKENS、TEXT_MAX_TOKENS，以及输入/输出每百万 token 的微元价格；TEXT_RESERVE_MICRO 必须覆盖最大上下文输入与输出费用。IMAGE_PRICE_MICRO 是一张图的已核实费用，不应沿用示例值当实际价格。
+
+流式文本必须同时取得结束标记、finish_reason 与完整非负 usage；连接中断、异常事件或缺少用量保留预留并进入待核对。已完成但四页结构不合格或输出被截断的文案计入已发生费用并标记失败，不自动重发。上游 HTTP 错误同样保守等待核对。图片下载失败只重试已有 URL，不重新生成。
+
+密钥仅保存在服务器 /etc/owlet/app.env（root 所有、0600），不需要加入 GitHub Actions。保存密钥不等于启用真实调用；核实配置与正式账本隔离后再切换模式。参考 [对话接口](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)、[图片接口](https://docs.bigmodel.cn/api-reference/模型-api/图像生成) 与 [官方价格](https://bigmodel.cn/pricing)，实际账号费率仍需核对。
 
 金额换算：1 元 = 1,000,000 微元；每百万 token 收 X 元，则费率变量 = X × 1,000,000。代码目前以完整最大上下文估算，较保守；若单次上界超过个人 5 元会拒绝，需要选择合适模型。
 

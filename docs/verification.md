@@ -1,6 +1,11 @@
 # 真实验证记录
 
-更新：2026-09-07。本地环境为 Windows、Node 22、便携 Go、隔离 PostgreSQL、Chrome。云端为阿里云轻量应用服务器、Ubuntu 24.04.2、PostgreSQL 16.15、Caddy 2.6.2，通过固定主机指纹的 SSH 隧道验收。
+更新：2026-09-18。本地环境为 Windows、Node 22、便携 Go、隔离 PostgreSQL、Chrome。云端为阿里云轻量应用服务器、Ubuntu 24.04.2、PostgreSQL 16.15、Caddy 2.6.2，通过固定主机指纹的 SSH 隧道验收。
+
+## 最新进展
+
+- GitHub Actions 自动测试（包括 go test -race）及首次手动部署已通过：[部署记录](https://github.com/ZoeySigel/owlet/actions/runs/34800581281)。部署后公网健康接口及版本号已核实。
+- 新增流式协议测试，覆盖正常结束、缺失用量、截断、异常 JSON、错误事件及无效用量；图片尺寸与预留上界测试在本地通过。真实 BigModel 调用尚未验证。
 
 ## 已通过
 
@@ -32,7 +37,7 @@
 - BigModel 账号权限、实际模型响应/usage、图片尺寸支持、生成质量、价格上界、真实账单核对。
 - 长时间稳定性、整台主机重启、持续负载 CPU/RSS 与容量上限。已完成的是应用服务重启，不是主机重启。
 - Docker 镜像构建运行仍未验证；实际服务器走原生 systemd 部署。
-- GitHub Actions 云端运行、go test -race（本地没有 C 编译环境，CI 已配置）、iOS Safari 的下载行为。
+- iOS Safari 的下载行为。
 - 上游 HTTP 故障只通过状态/账本用例验证恢复决策，未对真实付费服务注入故障。
 
 ## 已知取舍
